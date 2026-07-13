@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPOT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #F7F8FA;
+      --white:    #FFFFFF;
+      --border:   #E2E4E9;
+      --border2:  #D0D3DA;
+      --text:     #111318;
+      --muted:    #6B7180;
+      --faint:    #9BA3B2;
+      --mono:     'IBM Plex Mono', 'Fira Code', monospace;
+      --sans:     'IBM Plex Sans', system-ui, sans-serif;
+      --blue:     #0057FF;
+      --blue-bg:  #EEF3FF;
+      --green:    #00B341;
+      --green-bg: #EDFFF4;
+      --red:      #E52222;
+      --red-bg:   #FFF0F0;
+      --amber:    #A05C00;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page { max-width: 960px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* ══ NAV ═══════════════════════════════════════════════════════════════ */
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--text);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .cam-status {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--faint);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .cam-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--faint);
+      flex-shrink: 0;
+    }
+
+    .cam-dot.live {
+      background: var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    .nav-clock {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--faint);
+    }
+
+    /* ══ STATUS HERO ════════════════════════════════════════════════════════
+       The most important thing: is the spot free?
+       The word scrambles like an airport departure board on state change.
+       ═══════════════════════════════════════════════════════════════════════ */
+    .status-hero {
+      padding: 28px 0 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .status-word {
+      font-family: var(--mono);
+      font-size: clamp(36px, 7vw, 80px);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1;
+      color: var(--text);
+      transition: color 0.2s;
+      margin-bottom: 10px;
+    }
+
+    .status-word.state-monitoring { color: var(--blue); }
+    .status-word.state-occupied   { color: var(--red);  }
+    .status-word.state-free       { color: var(--green);}
+    .status-word.state-noref      { color: var(--amber);}
+
+    .status-sub {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .status-meta {
+      text-align: right;
+      flex-shrink: 0;
+      padding-top: 6px;
+    }
+
+    .meta-row {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--faint);
+      line-height: 2;
+    }
+
+    .meta-val {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    /* ══ STEP BAR ════════════════════════════════════════════════════════ */
+    .step-bar {
+      display: flex;
+      align-items: center;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      scrollbar-width: none;
+      gap: 0;
+    }
+    .step-bar::-webkit-scrollbar { display: none; }
+
+    .step-item {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--faint);
+      white-space: nowrap;
+      padding: 0 2px;
+    }
+    .step-item.active { color: var(--amber); }
+    .step-item.done   { color: var(--green); }
+
+    .step-sep {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #D0D3DA;
+      padding: 0 6px;
+      flex-shrink: 0;
+    }
+
+    /* ══ MAIN BODY (video + panel) ════════════════════════════════════════ */
+    .main-body {
+      display: grid;
+      grid-template-columns: 1fr 212px;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    @media (max-width: 600px) {
+      .main-body { grid-template-columns: 1fr; }
+      .side-panel { border-left: none !important; border-top: 1px solid var(--border); }
+      .status-meta { display: none; }
+    }
+
+    /* ── VIDEO ─────────────────────────────────────────────────────────── */
+    .video-area { padding: 16px 0; }
+
+    .video-frame {
+      position: relative;
+      background: #141414;
+      border-radius: 5px;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      border: 1px solid #2a2a2a;
+    }
+
+    video  { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    canvas#overlay {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      cursor: crosshair;
+    }
+
+    .no-cam {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 8px;
+    }
+
+    .no-cam-icon {
+      font-size: 40px;
+      opacity: 0.2;
+    }
+
+    .no-cam-text {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #555;
+    }
+
+    .no-cam.hidden { display: none; }
+
+    .zone-hint {
+      position: absolute; bottom: 10px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.72);
+      color: #fff;
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: 3px;
+      pointer-events: none;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity .25s;
+    }
+    .zone-hint.show { opacity: 1; }
+
+    /* Scan line that goes from top to bottom while camera is active */
+    .scan {
+      position: absolute; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent 0%, #0057FF60 40%, #0057FF80 50%, #0057FF60 60%, transparent 100%);
+      display: none;
+      pointer-events: none;
+      animation: scanDown 3s linear infinite;
+    }
+    .scan.active { display: block; }
+    @keyframes scanDown {
+      0%   { top: 0%;   opacity: 0; }
+      4%   { opacity: 1; }
+      96%  { opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+
+    /* ── SIDE PANEL ─────────────────────────────────────────────────────── */
+    .side-panel {
+      border-left: 1px solid var(--border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .panel-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin-bottom: 8px;
+    }
+
+    /* Meters */
+    .meter { margin-bottom: 11px; }
+
+    .meter-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+
+    .meter-name {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .meter-reading {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .meter-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: 999px;
+      position: relative;
+      overflow: visible;
+    }
+
+    .meter-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--blue);
+      transition: width .35s ease, background .3s;
+      max-width: 100%;
+    }
+
+    .meter-fill.warn   { background: var(--amber); }
+    .meter-fill.danger { background: var(--red);   }
+    .meter-fill.good   { background: var(--green); }
+
+    /* Threshold marker on diff meter */
+    .thresh-mark {
+      position: absolute;
+      top: -4px; bottom: -4px;
+      width: 1px;
+      background: var(--amber);
+      transition: left .2s;
+    }
+
+    /* Session stats */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .stat-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 8px;
+    }
+
+    .stat-box-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--faint);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .stat-box-val {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-top: 2px;
+    }
+
+    /* ══ ALERT STRIP ════════════════════════════════════════════════════
+       Only visible while beeping. Full-bleed green. This is the moment.
+       ═════════════════════════════════════════════════════════════════ */
+    .alert-strip {
+      display: none;
+      background: var(--green);
+      color: #fff;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-align: center;
+      padding: 10px 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .alert-strip.show { display: block; }
+
+    .alert-drain {
+      position: absolute;
+      bottom: 0; left: 0;
+      height: 3px;
+      background: rgba(255,255,255,.45);
+      animation: drain 5s linear forwards;
+    }
+    @keyframes drain { from{width:100%} to{width:0%} }
+
+    /* ══ HISTORY ═══════════════════════════════════════════════════════ */
+    .history-row {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .history-title {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--faint);
+    }
+
+    .history-key {
+      display: flex;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--faint);
+      align-items: center;
+    }
+
+    .hk { display: flex; align-items: center; gap: 4px; }
+    .hk-dot { width: 8px; height: 8px; border-radius: 1px; }
+
+    canvas#hgraph {
+      width: 100%;
+      height: 52px;
+      display: block;
+      border-radius: 3px;
+      background: var(--white);
+      border: 1px solid var(--border);
+    }
+
+    /* ══ CONTROLS ══════════════════════════════════════════════════════ */
+    .controls-row {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .btn {
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 15px;
+      border-radius: 5px;
+      border: 1px solid var(--border2);
+      background: var(--white);
+      color: var(--text);
+      cursor: pointer;
+      transition: background .1s, border-color .1s, transform .08s;
+      line-height: 1;
+    }
+
+    .btn:hover:not(:disabled) { background: var(--bg); border-color: #B0B5C0; }
+    .btn:active:not(:disabled) { transform: scale(.97); }
+    .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+    .btn-go {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+    .btn-go:hover:not(:disabled) { background: #0048D6; border-color: #0048D6; }
+
+    .btn-capture {
+      background: var(--text);
+      color: #fff;
+      border-color: var(--text);
+    }
+    .btn-capture:hover:not(:disabled) { background: #333; border-color: #333; }
+
+    .btn-stop {
+      background: var(--red-bg);
+      color: var(--red);
+      border-color: #F5BABA;
+    }
+    .btn-stop:hover:not(:disabled) { background: #FFDEDE; }
+
+    .thresh-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .thresh-row input[type=range] {
+      accent-color: var(--amber);
+      cursor: pointer;
+      flex: 1;
+      max-width: 160px;
+    }
+
+    .thresh-num {
+      font-weight: 600;
+      color: var(--amber);
+      min-width: 30px;
+    }
+
+    .thresh-hint { color: var(--faint); font-size: 10px; }
+
+    /* ══ HOW TO USE ═════════════════════════════════════════════════════
+       Using <details> / <summary> — native HTML, no JS needed.
+       ═════════════════════════════════════════════════════════════════ */
+    details.howto {
+      border-bottom: 1px solid var(--border);
+    }
+
+    details.howto > summary {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 13px 0;
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    details.howto > summary::-webkit-details-marker { display: none; }
+
+    .summary-icon { font-size: 10px; color: var(--faint); transition: transform .2s; }
+    details[open] .summary-icon { transform: rotate(90deg); }
+
+    .howto-body {
+      padding-bottom: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+    }
+
+    @media (max-width: 520px) { .howto-body { grid-template-columns: 1fr; } }
+
+    .howto-col h4 {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin-bottom: 12px;
+    }
+
+    .setup-list {
+      list-style: none;
+      counter-reset: s;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .setup-list li {
+      counter-increment: s;
+      display: flex;
+      gap: 10px;
+      font-size: 13px;
+      color: #444;
+      line-height: 1.55;
+    }
+
+    .setup-list li::before {
+      content: counter(s);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--faint);
+      min-width: 14px;
+      padding-top: 2px;
+    }
+
+    .tips-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tips-list li {
+      font-size: 13px;
+      color: #555;
+      padding-left: 14px;
+      position: relative;
+      line-height: 1.5;
+    }
+
+    .tips-list li::before {
+      content: '–';
+      position: absolute;
+      left: 0;
+      color: var(--faint);
+    }
+
+    .tips-list strong { color: var(--text); font-weight: 600; }
+
+    /* ══ LOG ═══════════════════════════════════════════════════════════ */
+    .log-section { padding-top: 14px; }
+
+    .log-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .log-title {
+      font-family: var(--mono);
+      font-size: 9px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--faint);
+    }
+
+    .log-clear-btn {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--faint);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+    .log-clear-btn:hover { color: var(--muted); }
+
+    .log-body {
+      font-family: var(--mono);
+      font-size: 12px;
+      height: 140px;
+      overflow-y: auto;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 10px 14px;
+    }
+    .log-body::-webkit-scrollbar { width: 3px; }
+    .log-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    .log-line {
+      display: flex;
+      gap: 8px;
+      padding: 3px 0;
+      border-bottom: 1px solid #F0F1F4;
+      align-items: baseline;
+    }
+    .log-line:last-child { border-bottom: none; }
+
+    .log-ts { color: var(--faint); flex-shrink: 0; }
+    .log-arrow { color: #C8CCCF; flex-shrink: 0; }
+    .log-text { color: var(--muted); line-height: 1.4; }
+
+    .log-line.alert .log-text { color: var(--green); font-weight: 500; }
+    .log-line.warn  .log-text { color: var(--amber); }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── NAV ──────────────────────────────────────────────────────────────── -->
+  <nav class="nav">
+    <div class="nav-brand">SPOT</div>
+    <div class="nav-right">
+      <div class="cam-status">
+        <span class="cam-dot" id="camDot"></span>
+        <span id="camLabel">camera off</span>
+      </div>
+      <div class="nav-clock" id="clock"></div>
+    </div>
+  </nav>
+
+  <!-- ── STATUS HERO ──────────────────────────────────────────────────────── -->
+  <div class="status-hero">
+    <div>
+      <!-- This word scrambles like an airport departure board on state change -->
+      <div class="status-word" id="statusWord">STANDBY</div>
+      <div class="status-sub"  id="statusSub">Start the camera and follow the steps below</div>
+    </div>
+    <div class="status-meta">
+      <div class="meta-row">
+        detections &nbsp;<span class="meta-val" id="mDet">0</span>
+      </div>
+      <div class="meta-row">
+        diff now &nbsp;&nbsp;<span class="meta-val" id="mDiff">—</span>
+      </div>
+      <div class="meta-row">
+        uptime &nbsp;&nbsp;&nbsp;<span class="meta-val" id="mUptime">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP BAR ──────────────────────────────────────────────────────────── -->
+  <div class="step-bar">
+    <span class="step-item active" id="sb1">01 start camera</span>
+    <span class="step-sep">›</span>
+    <span class="step-item" id="sb2">02 draw zone</span>
+    <span class="step-sep">›</span>
+    <span class="step-item" id="sb3">03 capture empty spot</span>
+    <span class="step-sep">›</span>
+    <span class="step-item" id="sb4">04 walk away</span>
+  </div>
+
+  <!-- ── MAIN BODY ─────────────────────────────────────────────────────────── -->
+  <div class="main-body">
+
+    <!-- Video -->
+    <div class="video-area">
+      <div class="video-frame">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="overlay"></canvas>
+        <div class="scan" id="scan"></div>
+        <div class="no-cam" id="noCam">
+          <div class="no-cam-icon">▭</div>
+          <div class="no-cam-text">no camera feed</div>
+        </div>
+        <div class="zone-hint" id="zoneHint">click and drag to mark your parking spot</div>
+      </div>
+    </div>
+
+    <!-- Side panel -->
+    <div class="side-panel">
+
+      <div>
+        <div class="panel-label">Meters</div>
+
+        <div class="meter">
+          <div class="meter-top">
+            <span class="meter-name">ZONE DIFF</span>
+            <span class="meter-reading" id="readDiff">—</span>
+          </div>
+          <div class="meter-track">
+            <div class="meter-fill" id="fillDiff" style="width:0%"></div>
+            <div class="thresh-mark" id="threshMark" style="left:20%"></div>
+          </div>
+        </div>
+
+        <div class="meter">
+          <div class="meter-top">
+            <span class="meter-name">CONFIDENCE</span>
+            <span class="meter-reading" id="readConf">—</span>
+          </div>
+          <div class="meter-track">
+            <div class="meter-fill" id="fillConf" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-label">Session</div>
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-box-label">detected</div>
+            <div class="stat-box-val" id="sDet">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-label">zone px</div>
+            <div class="stat-box-val" id="sZone">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-label">ref at</div>
+            <div class="stat-box-val" id="sRef">—</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-label">uptime</div>
+            <div class="stat-box-val" id="sUp">—</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── ALERT STRIP (only visible while beeping) ──────────────────────────── -->
+  <div class="alert-strip" id="alertStrip">
+    SPOT IS FREE — beeping now
+    <div class="alert-drain" id="alertDrain"></div>
+  </div>
+
+  <!-- ── HISTORY GRAPH ─────────────────────────────────────────────────────── -->
+  <div class="history-row">
+    <div class="history-head">
+      <span class="history-title">60-second history</span>
+      <div class="history-key">
+        <span class="hk"><span class="hk-dot" style="background:#00B341"></span>empty</span>
+        <span class="hk"><span class="hk-dot" style="background:#E52222"></span>occupied</span>
+        <span class="hk"><span class="hk-dot" style="background:#A05C00;height:2px;border-radius:0"></span>threshold</span>
+      </div>
+    </div>
+    <canvas id="hgraph"></canvas>
+  </div>
+
+  <!-- ── CONTROLS ──────────────────────────────────────────────────────────── -->
+  <div class="controls-row">
+    <div class="btn-group">
+      <button class="btn btn-go"      id="btnStart"   onclick="startCamera()">start camera</button>
+      <button class="btn btn-stop"    id="btnStop"    onclick="stopCamera()"    style="display:none">stop</button>
+      <button class="btn btn-capture" id="btnCapture" onclick="captureRef()"   disabled>capture empty spot</button>
+      <button class="btn"             id="btnClear"   onclick="clearZone()"    disabled>clear zone</button>
+      <button class="btn"             id="btnTest"    onclick="testBeep()"     disabled>test beep</button>
+    </div>
+    <div class="thresh-row">
+      <span>threshold</span>
+      <input type="range" id="threshSlider" min="3" max="50" value="20"
+             oninput="onThreshChange(this.value)">
+      <span class="thresh-num" id="threshNum">20%</span>
+      <span class="thresh-hint">← lower = more sensitive</span>
+    </div>
+  </div>
+
+  <!-- ── HOW TO USE ─────────────────────────────────────────────────────────── -->
+  <details class="howto">
+    <summary>
+      <span class="summary-icon">▶</span>
+      how to use this
+    </summary>
+    <div class="howto-body">
+      <div class="howto-col">
+        <h4>Setup</h4>
+        <ol class="setup-list">
+          <li>Click <strong>start camera</strong> and allow access. Point the camera toward your spot — a small gap at the curtain edge is enough, even 1–2 cm.</li>
+          <li>Click and drag on the video to draw a box tightly around just the parking space. Tighter zone = less noise = better accuracy.</li>
+          <li>Make sure the spot is empty, then click <strong>capture empty spot</strong>. Stay still — it takes 5 frames over about a second and averages them.</li>
+          <li>Click <strong>test beep</strong> to make sure your volume is up, then walk away. It'll beep when a parked car leaves.</li>
+        </ol>
+      </div>
+      <div class="howto-col">
+        <h4>Calibrating the threshold</h4>
+        <ul class="tips-list">
+          <li>Watch the <strong>Zone Diff</strong> meter. When the spot is empty it should read low (under 10%). When a car is there, it should jump higher (20–60%). Set the threshold slider between those two numbers.</li>
+          <li>False alarms from passing shadows or clouds → <strong>increase</strong> the threshold</li>
+          <li>Cars not being detected → <strong>decrease</strong> the threshold</li>
+          <li>Re-capture the reference if lighting changes significantly — the app adapts slowly but a big shift (day to night) needs a fresh capture</li>
+          <li>On a phone: prop it on the sill with just the lens peeking past the curtain</li>
+        </ul>
+      </div>
+    </div>
+  </details>
+
+  <!-- ── LOG ───────────────────────────────────────────────────────────────── -->
+  <div class="log-section">
+    <div class="log-head">
+      <span class="log-title">Log</span>
+      <button class="log-clear-btn" onclick="clearLog()">clear</button>
+    </div>
+    <div class="log-body" id="logBox">
+      <div class="log-line">
+        <span class="log-ts">--:--:--</span>
+        <span class="log-arrow">→</span>
+        <span class="log-text">SPOT ready</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+/* ─── DOM ─────────────────────────────────────────────────────────────────── */
+const video   = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const octx    = overlay.getContext('2d');
+const noCam   = document.getElementById('noCam');
+const zoneHint= document.getElementById('zoneHint');
+const scan    = document.getElementById('scan');
+const logBox  = document.getElementById('logBox');
+const hgraph  = document.getElementById('hgraph');
+const hctx    = hgraph.getContext('2d');
+
+/* ─── Algorithm constants ─────────────────────────────────────────────────── */
+const BLUR_R      = 2;      // separable box-blur radius
+const REF_FRAMES  = 5;      // frames to average for reference
+const REF_GAP_MS  = 150;    // ms between reference frames
+const LEARN_RATE  = 0.012;  // adaptive background update rate (empty frames only)
+const RISE_RATE   = 0.28;   // confidence rise rate (car appears)
+const FALL_RATE   = 0.13;   // confidence fall rate (car leaves)
+const SCORE_OCC   = 65;     // declare "occupied" above this
+const SCORE_EMPTY = 35;     // declare "empty" below this
+const DIFF_SCALE  = 250;    // multiply normalised diff → 0-100 %
+
+/* ─── State ───────────────────────────────────────────────────────────────── */
+let zone         = null;   // drawn zone {x,y,w,h}
+let refPixels    = null;   // Float32Array — normalised reference
+let refZone      = null;   // integer-snapped zone at capture time
+let wasOccupied  = null;   // null | true | false
+let cameraActive = false;
+let score        = 0;      // smooth 0-100 confidence score
+let lastDiff     = 0;
+let history      = [];     // [{diff, occ}] last 60 entries
+let threshold    = 20;
+let detections   = 0;
+let monStart     = null;   // when monitoring started
+let detTimer     = null;
+let raf          = null;
+let audioCtx     = null;
+let isBeeping    = false;
+let drawing      = false;
+let drawStart    = null;
+let tempZone     = null;
+
+// Offscreen canvas for pixel work — willReadFrequently is a meaningful perf hint
+const offscreen = document.createElement('canvas');
+const offCtx    = offscreen.getContext('2d', { willReadFrequently: true });
+
+/* ─── Departure-board scramble animation ─────────────────────────────────────
+   The signature move: status word scrambles like an airport flip board
+   before settling into the new state. Relevant because you watch a parking
+   board the same way you watch a departure board — waiting for it to change.
+   ─────────────────────────────────────────────────────────────────────────── */
+const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#@!?0123456789';
+
+function setStateWord(newWord, cssClass) {
+  const el   = document.getElementById('statusWord');
+  const word = newWord.toUpperCase();
+  const total = 16;  // scramble frames
+  let   frame = 0;
+
+  el.className = 'status-word'; // clear current state class
+
+  const tick = setInterval(() => {
+    frame++;
+    const progress = frame / total;
+
+    if (frame >= total) {
+      el.textContent  = word;
+      el.className    = 'status-word ' + cssClass;
+      clearInterval(tick);
+      return;
+    }
+
+    // Each character resolves from left to right as progress increases
+    let out = '';
+    for (let i = 0; i < word.length; i++) {
+      if (word[i] === ' ' || i / word.length < progress) {
+        out += word[i];
+      } else {
+        out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+      }
+    }
+    el.textContent = out;
+  }, 420 / total);
+}
+
+function setSub(text) {
+  document.getElementById('statusSub').textContent = text;
+}
+
+/* ─── Camera ─────────────────────────────────────────────────────────────── */
+async function startCamera() {
+  // AudioContext must be created inside a user gesture
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    video.srcObject = stream;
+
+    video.onloadedmetadata = () => {
+      overlay.width = offscreen.width = video.videoWidth;
+      overlay.height = offscreen.height = video.videoHeight;
+
+      noCam.classList.add('hidden');
+      zoneHint.classList.add('show');
+      scan.classList.add('active');
+      cameraActive = true;
+
+      g('camDot').classList.add('live');
+      g('camLabel').textContent = 'live';
+      g('btnStart').style.display  = 'none';
+      g('btnStop').style.display   = '';
+      g('btnClear').disabled = false;
+      g('btnTest').disabled  = false;
+
+      setStep(2);
+      setStateWord('DRAW ZONE', 'state-noref');
+      setSub('Click and drag on the video to mark your parking spot');
+      log('Camera started — ' + video.videoWidth + '×' + video.videoHeight);
+
+      startDetection();
+      startRender();
+    };
+  } catch (err) {
+    setStateWord('ERROR', '');
+    setSub('Camera access denied — allow it in your browser and try again');
+    log('Camera error: ' + err.message, 'warn');
+  }
+}
+
+function stopCamera() {
+  if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+  video.srcObject = null;
+  clearInterval(detTimer);
+  cancelAnimationFrame(raf);
+
+  cameraActive = false;
+  zone = refPixels = refZone = null;
+  wasOccupied = null;
+  score = lastDiff = 0;
+  history = [];
+  detections = 0;
+  monStart = null;
+
+  octx.clearRect(0, 0, overlay.width, overlay.height);
+  clearGraph();
+
+  noCam.classList.remove('hidden');
+  zoneHint.classList.remove('show');
+  scan.classList.remove('active');
+
+  g('camDot').classList.remove('live');
+  g('camLabel').textContent = 'camera off';
+  g('btnStart').style.display  = '';
+  g('btnStop').style.display   = 'none';
+  g('btnCapture').disabled = true;
+  g('btnCapture').textContent = 'capture empty spot';
+  g('btnClear').disabled = true;
+  g('btnTest').disabled  = true;
+
+  setStep(1);
+  setStateWord('STANDBY', '');
+  setSub('Start the camera and follow the steps below');
+  log('Camera stopped');
+  updateMeta();
+}
+
+/* ─── Reference capture ──────────────────────────────────────────────────── */
+async function captureRef() {
+  if (!zone || !cameraActive || video.readyState < 2) {
+    log('Draw a zone on the video first', 'warn'); return;
+  }
+
+  const zx = Math.max(0, Math.floor(zone.x));
+  const zy = Math.max(0, Math.floor(zone.y));
+  const zw = Math.min(offscreen.width  - zx, Math.floor(zone.w));
+  const zh = Math.min(offscreen.height - zy, Math.floor(zone.h));
+
+  if (zw < 10 || zh < 10) { log('Zone is too small — draw a larger box', 'warn'); return; }
+
+  const btn = g('btnCapture');
+  btn.disabled = true;
+
+  // Capture REF_FRAMES frames, average them
+  const acc = new Float32Array(zw * zh);
+
+  for (let f = 0; f < REF_FRAMES; f++) {
+    btn.textContent = 'capturing ' + (f + 1) + '/' + REF_FRAMES + '…';
+    offCtx.drawImage(video, 0, 0);
+    const raw  = offCtx.getImageData(zx, zy, zw, zh).data;
+    const gray = toGray(raw, zw, zh);
+    const blr  = boxBlur(gray, zw, zh, BLUR_R);
+    for (let i = 0; i < acc.length; i++) acc[i] += blr[i];
+    if (f < REF_FRAMES - 1) await sleep(REF_GAP_MS);
+  }
+
+  for (let i = 0; i < acc.length; i++) acc[i] /= REF_FRAMES;
+
+  // Brightness normalise: divide by zone average so lighting changes don't matter
+  const avgGray = acc.reduce((s, v) => s + v, 0) / acc.length;
+  refPixels = new Float32Array(acc.length);
+  for (let i = 0; i < acc.length; i++) refPixels[i] = acc[i] / (avgGray + 1);
+  refZone = { x: zx, y: zy, w: zw, h: zh };
+
+  score = lastDiff = 0;
+  wasOccupied = null;
+  monStart = Date.now();
+
+  btn.textContent = 're-capture reference';
+  btn.disabled    = false;
+
+  g('sRef').textContent = new Date().toTimeString().slice(0, 5);
+  setStep(4);
+  setStateWord('MONITORING', 'state-monitoring');
+  setSub('Watching your spot — will alert when a parked car leaves');
+  log('Reference captured (' + REF_FRAMES + ' frames averaged, ' + zw + '×' + zh + 'px)');
+  log('Beep will only trigger when a parked car leaves (not when empty at start)');
+}
+
+/* ─── Detection loop ─────────────────────────────────────────────────────── */
+function startDetection() {
+  clearInterval(detTimer);
+  detTimer = setInterval(runDetection, 1000);
+}
+
+function runDetection() {
+  if (!refPixels || !refZone || !cameraActive || video.readyState < 2) return;
+
+  const { x: zx, y: zy, w: zw, h: zh } = refZone;
+  offCtx.drawImage(video, 0, 0);
+
+  let raw;
+  try { raw = offCtx.getImageData(zx, zy, zw, zh).data; }
+  catch { return; }
+
+  // Process: grayscale → blur → brightness normalise
+  const gray    = toGray(raw, zw, zh);
+  const blurred = boxBlur(gray, zw, zh, BLUR_R);
+  const curAvg  = blurred.reduce((s, v) => s + v, 0) / blurred.length;
+
+  // Pixel-by-pixel normalised comparison
+  let diffSum = 0;
+  for (let i = 0; i < refPixels.length; i++) {
+    diffSum += Math.abs(refPixels[i] - blurred[i] / (curAvg + 1));
+  }
+
+  lastDiff = Math.min(100, Math.round((diffSum / refPixels.length) * DIFF_SCALE));
+
+  // Smooth confidence score (rises faster than it falls to avoid jitter)
+  const target = lastDiff >= threshold ? 100 : 0;
+  score += (target - score) * (lastDiff >= threshold ? RISE_RATE : FALL_RATE);
+  score  = Math.max(0, Math.min(100, score));
+
+  // Adaptive background — slowly absorb gradual lighting drift when empty
+  if (score < 25 && wasOccupied !== true) {
+    for (let i = 0; i < refPixels.length; i++) {
+      refPixels[i] += (blurred[i] / (curAvg + 1) - refPixels[i]) * LEARN_RATE;
+    }
+  }
+
+  /* ── State transitions ───────────────────────────────────────────────── */
+  const occupied = score > SCORE_OCC;
+  const empty    = score < SCORE_EMPTY;
+
+  if (occupied && wasOccupied !== true) {
+    wasOccupied = true;
+    setStateWord('OCCUPIED', 'state-occupied');
+    setSub('Vehicle detected — zone changed ' + lastDiff + '% from reference');
+    log('Vehicle detected — diff: ' + lastDiff + '%', 'warn');
+
+  } else if (empty) {
+    if (wasOccupied === true) {
+      // ✅ THE ONLY CASE WE BEEP — car was there, now it's gone
+      wasOccupied = false;
+      detections++;
+      setStateWord('FREE', 'state-free');
+      setSub('Your spot just became available — beeping now');
+      log('Spot is FREE — beeping for 5 seconds', 'alert');
+      triggerBeep();
+
+    } else if (wasOccupied === null) {
+      // First read, spot already empty — no beep, just start monitoring
+      wasOccupied = false;
+      setStateWord('MONITORING', 'state-monitoring');
+      setSub('Spot looks empty — waiting for a car to arrive first…');
+      log('Monitoring started — spot empty (diff: ' + lastDiff + '%)');
+    }
+
+    // wasOccupied === false → still empty, keep monitoring, no action
+  }
+
+  /* ── Update displays ──────────────────────────────────────────────────── */
+  updateMeters(lastDiff, Math.round(score));
+  updateMeta();
+  history.push({ diff: lastDiff, occ: wasOccupied === true });
+  if (history.length > 60) history.shift();
+  drawGraph();
+}
+
+/* ─── Canvas overlay render loop ─────────────────────────────────────────── */
+function startRender() {
+  function frame() {
+    if (!cameraActive) return;
+    octx.clearRect(0, 0, overlay.width, overlay.height);
+
+    // Temp zone while user drags
+    if (tempZone && tempZone.w > 0 && tempZone.h > 0) {
+      octx.save();
+      octx.setLineDash([6, 4]);
+      octx.strokeStyle = 'rgba(255,255,255,.65)';
+      octx.lineWidth   = 1.5;
+      octx.strokeRect(tempZone.x, tempZone.y, tempZone.w, tempZone.h);
+      octx.restore();
+    }
+
+    // Confirmed zone
+    if (zone) {
+      const col = wasOccupied === true  ? '#E52222'
+                : wasOccupied === false ? '#00B341'
+                :                        '#0057FF';
+
+      // Zone fill
+      octx.fillStyle = wasOccupied === true  ? 'rgba(229,34,34,.07)'
+                     : wasOccupied === false ? 'rgba(0,179,65,.07)'
+                     :                        'rgba(0,87,255,.07)';
+      octx.fillRect(zone.x, zone.y, zone.w, zone.h);
+
+      // Border
+      octx.setLineDash([]);
+      octx.strokeStyle = col;
+      octx.lineWidth   = 2;
+      octx.strokeRect(zone.x, zone.y, zone.w, zone.h);
+
+      // Corner brackets (styled like a camera viewfinder)
+      const a = 14;
+      octx.lineWidth = 3;
+      [
+        [zone.x,          zone.y,          1,  1],
+        [zone.x + zone.w, zone.y,         -1,  1],
+        [zone.x,          zone.y + zone.h,  1, -1],
+        [zone.x + zone.w, zone.y + zone.h, -1, -1]
+      ].forEach(([cx, cy, dx, dy]) => {
+        octx.beginPath();
+        octx.moveTo(cx + dx * a, cy);
+        octx.lineTo(cx, cy);
+        octx.lineTo(cx, cy + dy * a);
+        octx.stroke();
+      });
+
+      // State label inside zone
+      const lbl = wasOccupied === true  ? 'OCCUPIED'
+                : wasOccupied === false ? 'CLEAR'
+                : refPixels             ? 'WATCHING'
+                :                        'SET REFERENCE';
+      octx.font = '500 11px ' + "'IBM Plex Mono', monospace";
+      const tw = octx.measureText(lbl).width;
+      const lx = zone.x + 4;
+      const ly = zone.y > 26 ? zone.y - 24 : zone.y + zone.h + 5;
+
+      octx.fillStyle = col;
+      octx.fillRect(lx - 3, ly, tw + 12, 19);
+      octx.fillStyle = '#fff';
+      octx.fillText(lbl, lx + 3, ly + 13);
+
+      // Live diff badge
+      if (refPixels) {
+        const db = lastDiff + '%';
+        const dtw = octx.measureText(db).width;
+        const dx2 = zone.x + zone.w - dtw - 16;
+        octx.fillStyle = lastDiff >= threshold ? 'rgba(229,34,34,.85)' : 'rgba(0,179,65,.75)';
+        octx.fillRect(dx2, ly, dtw + 12, 19);
+        octx.fillStyle = '#fff';
+        octx.fillText(db, dx2 + 3, ly + 13);
+      }
+    }
+
+    raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
+}
+
+/* ─── Zone drawing (mouse) ───────────────────────────────────────────────── */
+overlay.addEventListener('mousedown', e => {
+  if (!cameraActive) return;
+  drawing = true;
+  drawStart = canvasPt(e);
+  tempZone = null;
+  zoneHint.classList.remove('show');
+});
+
+overlay.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  tempZone = makeRect(drawStart, canvasPt(e));
+});
+
+overlay.addEventListener('mouseup', e => {
+  if (!drawing) return;
+  drawing = false;
+  const r = makeRect(drawStart, canvasPt(e));
+  if (r.w > 20 && r.h > 20) confirmZone(r);
+  tempZone = drawStart = null;
+});
+
+/* ─── Zone drawing (touch) ───────────────────────────────────────────────── */
+overlay.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (!cameraActive) return;
+  drawing = true;
+  drawStart = canvasPt(e.touches[0]);
+  zoneHint.classList.remove('show');
+}, { passive: false });
+
+overlay.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!drawing) return;
+  tempZone = makeRect(drawStart, canvasPt(e.touches[0]));
+}, { passive: false });
+
+overlay.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (!drawing) return;
+  drawing = false;
+  if (tempZone && tempZone.w > 20 && tempZone.h > 20) confirmZone(tempZone);
+  tempZone = drawStart = null;
+}, { passive: false });
+
+function confirmZone(r) {
+  zone = r;
+  refPixels = refZone = null;
+  wasOccupied = null;
+  score = lastDiff = 0;
+  g('btnCapture').disabled = false;
+  g('btnCapture').textContent = 'capture empty spot';
+  g('sZone').textContent = Math.round(r.w) + '×' + Math.round(r.h);
+  setStep(3);
+  setStateWord('READY', 'state-noref');
+  setSub('Spot looks empty? Click "capture empty spot" to set the reference');
+  log('Zone drawn — ' + Math.round(r.w) + '×' + Math.round(r.h) + 'px');
+}
+
+function clearZone() {
+  zone = refPixels = refZone = null;
+  wasOccupied = null;
+  score = lastDiff = 0;
+  history = [];
+  monStart = null;
+  clearGraph();
+  g('btnCapture').disabled = true;
+  g('btnCapture').textContent = 'capture empty spot';
+  g('sZone').textContent = '—';
+  g('sRef').textContent  = '—';
+  zoneHint.classList.add('show');
+  setStep(2);
+  setStateWord('DRAW ZONE', 'state-noref');
+  setSub('Click and drag on the video to mark your parking spot');
+  log('Zone cleared');
+}
+
+/* ─── Image processing helpers ───────────────────────────────────────────── */
+function toGray(data, w, h) {
+  const out = new Float32Array(w * h);
+  for (let i = 0; i < out.length; i++) {
+    const d = i * 4;
+    out[i] = data[d] * 0.299 + data[d + 1] * 0.587 + data[d + 2] * 0.114;
+  }
+  return out;
+}
+
+// Separable box blur — two O(n·r) passes instead of one O(n·r²) pass
+function boxBlur(src, w, h, r) {
+  const tmp = new Float32Array(w * h);
+  const out = new Float32Array(w * h);
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let s = 0, c = 0;
+      for (let dx = -r; dx <= r; dx++) {
+        s += src[y * w + Math.max(0, Math.min(w - 1, x + dx))];
+        c++;
+      }
+      tmp[y * w + x] = s / c;
+    }
+  }
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let s = 0, c = 0;
+      for (let dy = -r; dy <= r; dy++) {
+        s += tmp[Math.max(0, Math.min(h - 1, y + dy)) * w + x];
+        c++;
+      }
+      out[y * w + x] = s / c;
+    }
+  }
+
+  return out;
+}
+
+/* ─── Audio ──────────────────────────────────────────────────────────────── */
+function triggerBeep() {
+  if (isBeeping) return;
+  isBeeping = true;
+
+  // Show green alert strip with draining progress
+  const strip = g('alertStrip');
+  const drain = g('alertDrain');
+  strip.classList.add('show');
+  drain.style.animation = 'none';
+  void drain.offsetWidth;
+  drain.style.animation = '';
+
+  setTimeout(() => {
+    strip.classList.remove('show');
+    isBeeping = false;
+    if (wasOccupied === false) {
+      setStateWord('MONITORING', 'state-monitoring');
+      setSub('Spot is free — watching for the next change');
+    }
+  }, 5200);
+
+  if (!audioCtx) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  try {
+    const osc  = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.value = 0;
+
+    const now = audioCtx.currentTime;
+    for (let i = 0; i < 12; i++) {
+      const t = now + i * 0.42;
+      gain.gain.setValueAtTime(0.6, t);
+      gain.gain.linearRampToValueAtTime(0, t + 0.25);
+    }
+
+    osc.start(now);
+    osc.stop(now + 5.1);
+  } catch (e) {
+    log('Audio error: ' + e.message, 'warn');
+  }
+}
+
+function testBeep() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  isBeeping = false;
+  triggerBeep();
+  log('Test beep triggered');
+}
+
+/* ─── Meters & graph ─────────────────────────────────────────────────────── */
+function updateMeters(diff, conf) {
+  const df = g('fillDiff');
+  df.style.width = Math.min(100, diff) + '%';
+  df.className   = 'meter-fill' + (diff >= threshold ? ' danger' : diff > threshold * .65 ? ' warn' : ' good');
+  g('readDiff').textContent = diff + '%';
+
+  const cf = g('fillConf');
+  cf.style.width = conf + '%';
+  cf.className   = 'meter-fill' + (conf > SCORE_OCC ? ' danger' : conf < SCORE_EMPTY ? ' good' : ' warn');
+  g('readConf').textContent = conf + '%';
+}
+
+function onThreshChange(v) {
+  threshold = parseInt(v);
+  g('threshNum').textContent = v + '%';
+  g('threshMark').style.left = v + '%';
+  drawGraph();
+}
+
+function drawGraph() {
+  const W = hgraph.width  = hgraph.offsetWidth || 600;
+  const H = hgraph.height = 52;
+  hctx.clearRect(0, 0, W, H);
+  hctx.fillStyle = '#FFFFFF';
+  hctx.fillRect(0, 0, W, H);
+
+  const barW = W / 60;
+
+  history.forEach((p, i) => {
+    const bh = (p.diff / 100) * H;
+    hctx.fillStyle = p.occ ? 'rgba(229,34,34,.7)' : 'rgba(0,179,65,.55)';
+    hctx.fillRect(i * barW, H - bh, Math.max(1, barW - 0.5), bh);
+  });
+
+  // Threshold line
+  const ty = H - (threshold / 100) * H;
+  hctx.save();
+  hctx.setLineDash([4, 3]);
+  hctx.strokeStyle = 'rgba(160,92,0,.7)';
+  hctx.lineWidth = 1.5;
+  hctx.beginPath(); hctx.moveTo(0, ty); hctx.lineTo(W, ty); hctx.stroke();
+  hctx.restore();
+}
+
+function clearGraph() {
+  const W = hgraph.width  = hgraph.offsetWidth || 600;
+  const H = hgraph.height = 52;
+  hctx.fillStyle = '#FFFFFF';
+  hctx.fillRect(0, 0, W, H);
+}
+
+/* ─── Step indicators ────────────────────────────────────────────────────── */
+function setStep(n) {
+  ['sb1','sb2','sb3','sb4'].forEach((id, i) => {
+    const el = g(id);
+    el.className = 'step-item' + (i + 1 < n ? ' done' : i + 1 === n ? ' active' : '');
+  });
+}
+
+/* ─── Meta / session stats ───────────────────────────────────────────────── */
+function updateMeta() {
+  g('mDet').textContent    = detections;
+  g('mDiff').textContent   = refPixels ? lastDiff + '%' : '—';
+  g('sDet').textContent    = detections;
+  const up = monStart ? formatUptime(Date.now() - monStart) : '—';
+  g('mUptime').textContent = up;
+  g('sUp').textContent     = up;
+}
+
+function formatUptime(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const h = Math.floor(m / 60);
+  if (h > 0)  return h + 'h ' + (m % 60) + 'm';
+  if (m > 0)  return m + 'm ' + (s % 60) + 's';
+  return s + 's';
+}
+
+/* ─── Clock ──────────────────────────────────────────────────────────────── */
+function tickClock() {
+  g('clock').textContent = new Date().toTimeString().slice(0, 8);
+}
+
+/* ─── Log ────────────────────────────────────────────────────────────────── */
+function log(msg, type) {
+  const first = logBox.querySelector('.log-line');
+  if (first && first.querySelector('.log-ts').textContent === '--:--:--') first.remove();
+
+  const time = new Date().toTimeString().slice(0, 8);
+  const row  = document.createElement('div');
+  row.className = 'log-line ' + (type || '');
+  row.innerHTML =
+    '<span class="log-ts">' + time + '</span>' +
+    '<span class="log-arrow">→</span>' +
+    '<span class="log-text">' + msg + '</span>';
+  logBox.appendChild(row);
+  logBox.scrollTop = logBox.scrollHeight;
+  while (logBox.children.length > 80) logBox.removeChild(logBox.firstChild);
+}
+
+function clearLog() {
+  logBox.innerHTML = '';
+  log('Log cleared');
+}
+
+/* ─── Utils ──────────────────────────────────────────────────────────────── */
+function g(id) { return document.getElementById(id); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function canvasPt(e) {
+  const r = overlay.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * (overlay.width  / r.width),
+    y: (e.clientY - r.top)  * (overlay.height / r.height)
+  };
+}
+
+function makeRect(a, b) {
+  return {
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    w: Math.abs(b.x - a.x),
+    h: Math.abs(b.y - a.y)
+  };
+}
+
+/* ─── Boot ───────────────────────────────────────────────────────────────── */
+clearGraph();
+tickClock();
+setInterval(tickClock, 1000);
+setInterval(updateMeta, 5000);
+g('threshMark').style.left = threshold + '%';
+</script>
+</body>
+</html>
