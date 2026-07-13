@@ -193,9 +193,13 @@ This makes it easy to understand exactly what the system is doing.
 
 ## Lightweight
 
-SPOT runs entirely inside the browser.
+SPOT is distributed as a **single standalone HTML file**.
 
 No installation.
+
+No IDE required.
+
+No additional libraries.
 
 No cloud services.
 
@@ -203,7 +207,7 @@ No subscriptions.
 
 No accounts.
 
-Simply open the page and start monitoring.
+Simply download **`SPOT.html`**, double-click to open it in your web browser, **allow camera access**, and start monitoring within seconds.
 
 ---
 
