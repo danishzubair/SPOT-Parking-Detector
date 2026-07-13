@@ -340,3 +340,9 @@ Just a simple beep at exactly the right moment.
 ## If you found this project interesting, please consider giving it a star and share it with others!
 
 It helps others discover the project and motivates future development.
+
+## License
+
+Copyright © 2026 Danish Zubair. All rights reserved.
+
+This repository is published for portfolio and demonstration purposes only. No part of this project may be copied, modified, redistributed, or used in other projects without the express written permission of the author.
